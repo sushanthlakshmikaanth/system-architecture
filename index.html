@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quantora AI — Full System Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #eef2f7;
+  font-family: 'Nunito', sans-serif;
+  padding: 28px 20px 52px;
+}
+.page { max-width: 1120px; margin: 0 auto; }
+
+.page-header { margin-bottom: 20px; }
+.page-title { font-size: 22px; font-weight: 900; color: #1a202c; letter-spacing: -0.5px; }
+.page-sub { font-size: 11px; color: #718096; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+
+/* ── Generic reusable ── */
+.arr { color: #a0aec0; font-size: 15px; align-self: center; margin: 0 3px; flex-shrink: 0; }
+.arr-down { text-align: center; color: #a0aec0; font-size: 20px; margin: 3px 0; line-height: 1; }
+.arr-right { font-size: 15px; color: #a0aec0; align-self: center; }
+
+.nbadge {
+  background: #f6c90e; color: #000;
+  border-radius: 50%; width: 17px; height: 17px; flex-shrink: 0;
+  font-size: 8px; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  border: 1.5px solid rgba(255,255,255,0.8);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+/* ── Outer AWS border ── */
+.aws-wrap {
+  border: 2px solid #e05252;
+  border-radius: 14px;
+  padding: 20px;
+  background: #fff;
+  position: relative;
+}
+.outer-label {
+  position: absolute; top: -13px; left: 14px;
+  background: #fff; padding: 0 10px;
+  font-size: 10px; font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  display: flex; align-items: center; gap: 6px;
+}
+.aws-wrap .outer-label { color: #e05252; }
+
+/* ── Tier containers ── */
+.tier {
+  border: 2px solid;
+  border-radius: 10px;
+  padding: 14px 16px;
+  position: relative;
+  margin-bottom: 10px;
+  background: #fafbfc;
+}
+.tier:last-child { margin-bottom: 0; }
+.tier-label {
+  position: absolute; top: -12px; left: 14px;
+  padding: 0 8px;
+  font-size: 10px; font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 1px;
+  border-radius: 4px;
+  display: flex; align-items: center; gap: 5px;
+}
+
+/* Tier color themes */
+.tier-frontend { border-color: #63b3ed; background: #f0f8ff; }
+.tier-frontend .tier-label { color: #2b6cb0; background: #f0f8ff; border: 1px solid #90cdf4; }
+
+.tier-backend  { border-color: #68d391; background: #f0fff4; }
+.tier-backend .tier-label { color: #276749; background: #f0fff4; border: 1px solid #9ae6b4; }
+
+.tier-stream   { border-color: #ed8936; background: #fffcf5; }
+.tier-stream .tier-label { color: #c05621; background: #fffcf5; border: 1px solid #fbd38d; }
+
+.tier-ml       { border-color: #9f7aea; background: #faf5ff; }
+.tier-ml .tier-label { color: #553c9a; background: #faf5ff; border: 1px solid #d6bcfa; }
+
+.tier-infra    { border-color: #4a5568; background: #f7fafc; }
+.tier-infra .tier-label { color: #2d3748; background: #f7fafc; border: 1px solid #a0aec0; }
+
+/* ── Namespace dashed boxes ── */
+.ns {
+  border: 2px dashed;
+  border-radius: 8px;
+  padding: 10px 12px;
+  position: relative;
+  margin-bottom: 8px;
+  background: rgba(255,255,255,0.6);
+}
+.ns:last-child { margin-bottom: 0; }
+.ns-tag {
+  position: absolute; top: -10px; right: 12px;
+  padding: 1px 8px;
+  font-size: 8px; font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  border-radius: 4px; border: 1px solid;
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+
+.ns-react   { border-color: #63b3ed; }
+.ns-react .ns-tag { background: #ebf8ff; color: #2b6cb0; border-color: #90cdf4; }
+
+.ns-node    { border-color: #68d391; }
+.ns-node .ns-tag { background: #f0fff4; color: #276749; border-color: #9ae6b4; }
+
+.ns-fastapi { border-color: #48bb78; }
+.ns-fastapi .ns-tag { background: #f0fff4; color: #22543d; border-color: #68d391; }
+
+.ns-kafka   { border-color: #fc8181; }
+.ns-kafka .ns-tag { background: #fff5f5; color: #742a2a; border-color: #fc8181; }
+
+.ns-flink   { border-color: #f6ad55; }
+.ns-flink .ns-tag { background: #fffaf0; color: #744210; border-color: #fbd38d; }
+
+.ns-graph   { border-color: #4299e1; }
+.ns-graph .ns-tag { background: #ebf8ff; color: #2b6cb0; border-color: #90cdf4; }
+
+.ns-scoring { border-color: #e53e3e; }
+.ns-scoring .ns-tag { background: #fff5f5; color: #742a2a; border-color: #feb2b2; }
+
+.ns-explain { border-color: #d69e2e; }
+.ns-explain .ns-tag { background: #fffff0; color: #744210; border-color: #ecc94b; }
+
+.ns-aws     { border-color: #ed8936; }
+.ns-aws .ns-tag { background: #fffaf0; color: #c05621; border-color: #fbd38d; }
+
+/* ── Service icon ── */
+.svc {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  position: relative; flex-shrink: 0;
+}
+.svc-box {
+  width: 50px; height: 50px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  border: 1.5px solid;
+  background: #fff;
+  transition: transform 0.15s, box-shadow 0.15s;
+  cursor: default;
+}
+.svc-box:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.svc-label {
+  font-size: 9px; font-weight: 700; color: #4a5568;
+  text-align: center; font-family: 'JetBrains Mono', monospace;
+  line-height: 1.3; max-width: 56px;
+}
+.svc-badge {
+  position: absolute; top: -8px; right: -7px;
+}
+
+/* ── Pod card ── */
+.pod {
+  border: 1.5px solid;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  position: relative;
+  flex: 1;
+  min-width: 120px;
+}
+.pod-header {
+  display: flex; align-items: center; gap: 5px; margin-bottom: 6px;
+}
+.pod-chip {
+  font-size: 8px; font-weight: 800; padding: 2px 7px;
+  border-radius: 10px; font-family: 'JetBrains Mono', monospace;
+  color: #fff; letter-spacing: 0.5px;
+}
+.strip {
+  border-radius: 5px; padding: 4px 8px;
+  font-size: 9px; font-weight: 700; text-align: center;
+  margin-bottom: 3px;
+  font-family: 'JetBrains Mono', monospace; line-height: 1.3;
+}
+.s-blue   { background: #bee3f8; color: #2c5282; border: 1px solid #90cdf4; }
+.s-green  { background: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
+.s-yellow { background: #fefcbf; color: #744210; border: 1px solid #f6e05e; }
+.s-purple { background: #e9d8fd; color: #553c9a; border: 1px solid #d6bcfa; }
+.s-red    { background: #fed7d7; color: #742a2a; border: 1px solid #feb2b2; }
+.s-orange { background: #feebc8; color: #7b341e; border: 1px solid #fbd38d; }
+.s-teal   { background: #b2f5ea; color: #234e52; border: 1px solid #81e6d9; }
+
+.pod-note { font-size: 8px; color: #a0aec0; font-family: 'JetBrains Mono', monospace; margin-top: 4px; line-height: 1.4; }
+
+/* ── Rows ── */
+.h-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.pod-row {
+  display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap;
+}
+
+/* ── Decision row ── */
+.decision-row {
+  display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 10px;
+}
+.d-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 20px; border-radius: 8px; border: 1.5px solid;
+  font-size: 11px; font-weight: 800;
+  font-family: 'JetBrains Mono', monospace; letter-spacing: 1px;
+}
+.d-safe   { border-color: #38a169; background: #f0fff4; color: #276749; }
+.d-review { border-color: #d69e2e; background: #fffaf0; color: #744210; }
+.d-fraud  { border-color: #e53e3e; background: #fff5f5; color: #742a2a; }
+
+/* ── Score bar ── */
+.sw-row { display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#718096; margin-bottom:4px; }
+.sw-label { width:120px; flex-shrink:0; }
+.sw-w { color:#e53e3e; font-weight:800; width:28px; flex-shrink:0; }
+.sw-track { flex:1; height:4px; background:rgba(0,0,0,0.07); border-radius:2px; overflow:hidden; }
+.sw-fill  { height:100%; border-radius:2px; }
+
+/* ── Legend ── */
+.legend { display:flex; gap:14px; flex-wrap:wrap; margin-top:14px; padding:10px 14px; background:#fff; border-radius:8px; border:1px solid #e2e8f0; }
+.leg { display:flex; align-items:center; gap:5px; font-size:9px; font-family:'JetBrains Mono',monospace; color:#718096; }
+.leg-line { width:18px; height:3px; border-radius:2px; }
+.leg-dash { width:18px; height:0; border-top:2px dashed; }
+
+/* tag row for quick tools */
+.tag-row { display:flex; gap:5px; flex-wrap:wrap; margin-top:5px; }
+.tag { font-size:8px; font-weight:700; padding:2px 8px; border-radius:12px; font-family:'JetBrains Mono',monospace; border:1px solid; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="page-header">
+    <div class="page-title">Quantora AI — Full System Architecture</div>
+    <div class="page-sub">React · Node.js · FastAPI · Python · Kafka · Flink · Redis · Neo4j · XGBoost · SHAP · AWS · Streamlit</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       AWS Account wrapper
+  ══════════════════════════════════════════ -->
+  <div class="aws-wrap">
+    <span class="outer-label">☁ AWS Account</span>
+
+    <!-- ══ TIER 1: FRONTEND ══ -->
+    <div class="tier tier-frontend">
+      <span class="tier-label">🖥 Frontend Layer</span>
+      <div class="pod-row" style="margin-top:4px;">
+
+        <!-- React App -->
+        <div class="ns ns-react" style="flex:2; margin-bottom:0;">
+          <span class="ns-tag">React App</span>
+          <div class="pod-row">
+            <div class="svc">
+              <div class="svc-box" style="border-color:#63b3ed; background:#ebf8ff; font-size:26px;">⚛</div>
+              <span class="svc-label">React<br/>Frontend</span>
+            </div>
+            <div class="arr">→</div>
+            <div class="pod" style="border-color:#63b3ed; flex:1;">
+              <div class="pod-header">
+                <span class="nbadge">1</span>
+                <span class="pod-chip" style="background:#3182ce;">REACT</span>
+              </div>
+              <div class="strip s-blue">Dashboard UI</div>
+              <div class="strip s-blue">Transaction Monitor</div>
+              <div class="strip s-blue">Alert Viewer</div>
+              <div class="pod-note">User-facing fraud<br/>monitoring interface</div>
+            </div>
+            <div class="arr">→</div>
+            <!-- Streamlit -->
+            <div class="pod" style="border-color:#63b3ed; flex:1;">
+              <div class="pod-header">
+                <span class="nbadge">2</span>
+                <span class="pod-chip" style="background:#3182ce;">STREAMLIT</span>
+              </div>
+              <div class="strip s-blue">Analytics Dashboard</div>
+              <div class="strip s-blue">Graph Visualizer</div>
+              <div class="strip s-blue">SHAP Plots</div>
+              <div class="pod-note">Python-native analyst<br/>dashboard &amp; explainability</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arr">→</div>
+
+        <!-- Users -->
+        <div class="svc">
+          <div class="svc-box" style="border-color:#a0aec0;">👥</div>
+          <span class="svc-label">Users /<br/>Analysts</span>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="arr-down">↓</div>
+
+    <!-- ══ TIER 2: BACKEND / API ══ -->
+    <div class="tier tier-backend">
+      <span class="tier-label">⚙ Backend / API Layer</span>
+      <div class="pod-row" style="margin-top:4px;">
+
+        <!-- Node.js -->
+        <div class="ns ns-node" style="flex:1; margin-bottom:0;">
+          <span class="ns-tag">Node.js · API Gateway</span>
+          <div class="pod" style="border-color:#68d391;">
+            <div class="pod-header">
+              <span class="nbadge">3</span>
+              <span class="pod-chip" style="background:#38a169;">NODE.JS</span>
+            </div>
+            <div class="strip s-green">REST API Server</div>
+            <div class="strip s-green">Auth · JWT</div>
+            <div class="strip s-green">Rate Limiter</div>
+            <div class="strip s-green">WebSocket Events</div>
+            <div class="pod-note">API gateway &amp; real-time<br/>event push to React UI</div>
+          </div>
+        </div>
+
+        <div class="arr">→</div>
+
+        <!-- FastAPI -->
+        <div class="ns ns-fastapi" style="flex:1.5; margin-bottom:0;">
+          <span class="ns-tag">FastAPI · ML Service</span>
+          <div class="pod" style="border-color:#48bb78;">
+            <div class="pod-header">
+              <span class="nbadge">4</span>
+              <span class="pod-chip" style="background:#276749;">FASTAPI</span>
+            </div>
+            <div class="strip s-green">POST /score-transaction</div>
+            <div class="strip s-green">GET  /explain/{txn_id}</div>
+            <div class="strip s-green">GET  /graph/{account_id}</div>
+            <div class="strip s-teal">Python · Uvicorn · Pydantic</div>
+            <div class="pod-note">Serves ML predictions &amp;<br/>graph queries to Node.js</div>
+          </div>
+        </div>
+
+        <div class="arr">→</div>
+
+        <!-- Python Algorithms -->
+        <div class="ns ns-fastapi" style="flex:1.5; border-color:#805ad5; margin-bottom:0;">
+          <span class="ns-tag" style="color:#553c9a; border-color:#9f7aea; background:#faf5ff;">Python Algorithm Engine</span>
+          <div class="pod" style="border-color:#9f7aea;">
+            <div class="pod-header">
+              <span class="nbadge">5</span>
+              <span class="pod-chip" style="background:#6b46c1;">PYTHON</span>
+            </div>
+            <div class="strip s-purple">Fraud Detection Logic</div>
+            <div class="strip s-purple">Feature Pipeline</div>
+            <div class="strip s-purple">Model Inference</div>
+            <div class="strip s-purple">Graph Computation</div>
+            <div class="pod-note">Core algorithm layer<br/>called by FastAPI</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="arr-down">↓</div>
+
+    <!-- ══ TIER 3: STREAM PROCESSING ══ -->
+    <div class="tier tier-stream">
+      <span class="tier-label">⚡ Stream Processing Pipeline</span>
+
+      <!-- L1: Ingestion -->
+      <div class="ns ns-kafka">
+        <span class="ns-tag">Layer 1 · Data Ingestion</span>
+        <div class="pod-row">
+          <div class="svc">
+            <div class="svc-box" style="border-color:#fc8181; background:#fff5f5; font-size:20px;">📨</div>
+            <span class="svc-label">TX<br/>Event</span>
+          </div>
+          <div class="arr">→</div>
+          <div class="pod" style="border-color:#fc8181; flex:1;">
+            <div class="pod-header">
+              <span class="nbadge">6</span>
+              <span class="pod-chip" style="background:#e53e3e;">KAFKA</span>
+            </div>
+            <div class="strip s-red">Apache Kafka</div>
+            <div class="strip s-red">Topic: transactions</div>
+            <div class="strip s-red">Consumer Groups</div>
+            <div class="pod-note">Zero-loss event stream<br/>capture &amp; distribution</div>
+          </div>
+          <div class="arr">→</div>
+          <div style="font-size:9px; font-family:'JetBrains Mono',monospace; color:#a0aec0; align-self:center; text-align:center;">raw<br/>stream</div>
+          <div class="arr">→</div>
+
+          <!-- Flink -->
+          <div class="pod" style="border-color:#f6ad55; flex:2;">
+            <div class="pod-header">
+              <span class="nbadge">7</span>
+              <span class="pod-chip" style="background:#ed8936;">FLINK + REDIS</span>
+            </div>
+            <div class="pod-row" style="gap:6px;">
+              <div style="flex:1;">
+                <div class="strip s-orange">Apache Flink</div>
+                <div class="strip s-orange">Stateful Streaming</div>
+                <div class="strip s-orange">Windowed Aggregation</div>
+              </div>
+              <div style="flex:1;">
+                <div class="strip s-red">Redis Cache</div>
+                <div class="strip s-red">User History</div>
+                <div class="strip s-red">Device Registry</div>
+              </div>
+            </div>
+            <div class="tag-row" style="margin-top:6px;">
+              <span class="tag" style="border-color:#fed7d7;color:#742a2a;background:#fff5f5;">⚠ Amount 20×</span>
+              <span class="tag" style="border-color:#fed7d7;color:#742a2a;background:#fff5f5;">⚠ 3AM TX</span>
+              <span class="tag" style="border-color:#fed7d7;color:#742a2a;background:#fff5f5;">⚠ New device</span>
+              <span class="tag" style="border-color:#fed7d7;color:#742a2a;background:#fff5f5;">⚠ 2-day acct</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arr-down">↓</div>
+
+      <!-- L2: Graph -->
+      <div class="ns ns-graph">
+        <span class="ns-tag">Layers 2 & 3 · Graph Update + Analytics</span>
+        <div class="pod-row">
+          <div class="pod" style="border-color:#4299e1; flex:1;">
+            <div class="pod-header">
+              <span class="nbadge">8</span>
+              <span class="pod-chip" style="background:#2b6cb0;">NEO4J</span>
+            </div>
+            <div class="strip s-blue">Graph Update</div>
+            <div class="strip s-blue">Node: Account / Device</div>
+            <div class="strip s-blue">Edge: Transaction</div>
+            <div class="pod-note">Persistent graph DB<br/>A ══ B relationship store</div>
+          </div>
+          <div class="arr">→</div>
+          <div class="pod" style="border-color:#4299e1; flex:1;">
+            <div class="pod-header">
+              <span class="nbadge">9</span>
+              <span class="pod-chip" style="background:#2b6cb0;">NETWORKX</span>
+            </div>
+            <div class="strip s-blue">In-memory Graph</div>
+            <div class="strip s-blue">Subgraph Extraction</div>
+            <div class="strip s-blue">Pattern Matching</div>
+            <div class="pod-note">Python graph ops<br/>Fan-in · Fan-out · Cycles</div>
+          </div>
+          <div class="arr">→</div>
+          <div class="pod" style="border-color:#4299e1; flex:1.2;">
+            <div class="pod-header">
+              <span class="nbadge">10</span>
+              <span class="pod-chip" style="background:#2b6cb0;">LOUVAIN</span>
+            </div>
+            <div class="strip s-blue">Community Detection</div>
+            <div class="strip s-purple">PageRank Centrality</div>
+            <div class="strip s-blue">Fraud Cluster Score</div>
+            <div class="pod-note">python-louvain · NetworkX<br/>Finds gang connections</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="arr-down">↓</div>
+
+    <!-- ══ TIER 4: ML ENGINE ══ -->
+    <div class="tier tier-ml">
+      <span class="tier-label">🤖 ML Scoring & Explainability</span>
+      <div class="pod-row" style="margin-top:4px;">
+
+        <!-- Scoring -->
+        <div class="ns ns-scoring" style="flex:1.5; margin-bottom:0;">
+          <span class="ns-tag">Layer 4 · Risk Scoring</span>
+          <div class="pod" style="border-color:#e53e3e;">
+            <div class="pod-header">
+              <span class="nbadge">11</span>
+              <span class="pod-chip" style="background:#e53e3e;">XGBOOST</span>
+            </div>
+            <div class="strip s-red">XGBoost Classifier</div>
+            <div class="strip s-green">Scikit-learn Preprocessing</div>
+            <div style="margin:6px 0 2px;">
+              <div class="sw-row"><span class="sw-label">Transaction Risk</span><span class="sw-w">×0.4</span><div class="sw-track"><div class="sw-fill" style="width:40%;background:#e53e3e;"></div></div></div>
+              <div class="sw-row"><span class="sw-label">Behavioral Risk</span><span class="sw-w">×0.3</span><div class="sw-track"><div class="sw-fill" style="width:30%;background:#ed8936;"></div></div></div>
+              <div class="sw-row"><span class="sw-label">Graph Risk</span><span class="sw-w">×0.3</span><div class="sw-track"><div class="sw-fill" style="width:30%;background:#9f7aea;"></div></div></div>
+            </div>
+            <div style="height:5px;border-radius:3px;background:linear-gradient(to right,#38a169 40%,#d69e2e 30%,#e53e3e 30%);margin-top:6px;"></div>
+            <div style="display:flex;justify-content:space-between;font-size:8px;color:#a0aec0;font-family:'JetBrains Mono',monospace;margin-top:2px;">
+              <span>0.0 SAFE</span><span>0.4</span><span>0.7</span><span>1.0 FRAUD</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="arr">→</div>
+
+        <!-- Explainability -->
+        <div class="ns ns-explain" style="flex:2; margin-bottom:0;">
+          <span class="ns-tag">Layer 5 · Explainability</span>
+          <div class="pod-row">
+            <div class="pod" style="border-color:#d69e2e; flex:1;">
+              <div class="pod-header">
+                <span class="nbadge">12</span>
+                <span class="pod-chip" style="background:#b7791f;">SHAP</span>
+              </div>
+              <div class="strip s-yellow">SHAP Values</div>
+              <div class="strip s-yellow">Feature Importance</div>
+              <div class="strip s-yellow">Waterfall Plot</div>
+              <div class="pod-note">Why each feature<br/>drove the decision</div>
+            </div>
+            <div class="arr">+</div>
+            <div class="pod" style="border-color:#d69e2e; flex:1;">
+              <div class="pod-header">
+                <span class="nbadge">13</span>
+                <span class="pod-chip" style="background:#b7791f;">NEO4J TRACER</span>
+              </div>
+              <div class="strip s-yellow">Path Traversal</div>
+              <div class="strip s-yellow">Fraud Ring Trace</div>
+              <div class="strip s-yellow">Confidence: 89%</div>
+              <div class="pod-note">Graph-level reasoning<br/>for decisions</div>
+            </div>
+          </div>
+          <div style="margin-top:8px;padding:6px 10px;border:1px solid #f6e05e;border-radius:6px;background:#fff;font-size:9px;font-family:'JetBrains Mono',monospace;color:#744210;">
+            → Amount 20× baseline &nbsp;·&nbsp; 3AM TX &nbsp;·&nbsp; Cluster of 8 flagged accts &nbsp;·&nbsp; Device in fraud ring
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="arr-down">↓</div>
+
+    <!-- Decision -->
+    <div class="decision-row">
+      <div class="d-pill d-safe">✅ &nbsp;SAFE &nbsp;<span style="font-weight:400;font-size:9px;opacity:0.6;">0.0–0.4</span></div>
+      <div class="d-pill d-review">⚠ &nbsp;REVIEW &nbsp;<span style="font-weight:400;font-size:9px;opacity:0.6;">0.4–0.7</span></div>
+      <div class="d-pill d-fraud">❌ &nbsp;FRAUD &nbsp;<span style="font-weight:400;font-size:9px;opacity:0.6;">0.7–1.0</span></div>
+    </div>
+
+    <div class="arr-down">↓</div>
+
+    <!-- ══ TIER 5: AWS INFRASTRUCTURE ══ -->
+    <div class="tier tier-infra" style="margin-bottom:0;">
+      <span class="tier-label">☁ AWS Infrastructure</span>
+      <div class="ns ns-aws" style="margin-bottom:0;">
+        <span class="ns-tag">AWS Services</span>
+        <div class="h-row" style="justify-content:space-around; flex-wrap:wrap; gap:14px; padding:4px 0;">
+
+          <div class="svc">
+            <span class="svc-badge"><span class="nbadge">14</span></span>
+            <div class="svc-box" style="border-color:#f6ad55; background:#fffaf0;">🖥</div>
+            <span class="svc-label">EC2<br/>Instances</span>
+          </div>
+
+          <div class="svc">
+            <span class="svc-badge"><span class="nbadge">15</span></span>
+            <div class="svc-box" style="border-color:#68d391; background:#f0fff4;">🪣</div>
+            <span class="svc-label">S3<br/>Storage</span>
+          </div>
+
+          <div class="svc">
+            <span class="svc-badge"><span class="nbadge">16</span></span>
+            <div class="svc-box" style="border-color:#4299e1; background:#ebf8ff;">⚖️</div>
+            <span class="svc-label">ELB<br/>Load Bal.</span>
+          </div>
+
+          <div class="svc">
+            <span class="svc-badge"><span class="nbadge">17</span></span>
+            <div class="svc-box" style="border-color:#b794f4; background:#faf5ff;">☸</div>
+            <span class="svc-label">EKS<br/>Kubernetes</span>
+          </div>
+
+          <div class="svc">
+            <span class="svc-badge"><span class="nbadge">18</span></span>
+            <div class="svc-box" style="border-color:#f6ad55; background:#fffaf0;">📨</div>
+            <span class="svc-label">MSK<br/>Kafka</span>
+          </div>
+
+          <div class="svc">
+            <span class="svc-badge"><span class="nbadge">19</span></span>
+            <div class="svc-box" style="border-color:#fc8181; background:#fff5f5;">⚡</div>
+            <span class="svc-label">ElastiCache<br/>Redis</span>
+          </div>
+
+          <div class="svc">
+            <span class="svc-badge"><span class="nbadge">20</span></span>
+            <div class="svc-box" style="border-color:#68d391; background:#f0fff4;">🗄</div>
+            <span class="svc-label">RDS /<br/>DynamoDB</span>
+          </div>
+
+          <div class="svc">
+            <span class="svc-badge"><span class="nbadge">21</span></span>
+            <div class="svc-box" style="border-color:#f6ad55; background:#fffaf0;">🔔</div>
+            <span class="svc-label">CloudWatch<br/>Alerts</span>
+          </div>
+
+          <div class="svc">
+            <span class="svc-badge"><span class="nbadge">22</span></span>
+            <div class="svc-box" style="border-color:#fc8181; background:#fff5f5;">🛡</div>
+            <span class="svc-label">WAF /<br/>IAM</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /aws-wrap -->
+
+  <!-- Legend -->
+  <div class="legend">
+    <span style="font-size:9px;font-weight:800;color:#4a5568;font-family:'JetBrains Mono',monospace;">LEGEND:</span>
+    <div class="leg"><div class="leg-line" style="background:#e05252;"></div>AWS Account</div>
+    <div class="leg"><div class="leg-line" style="background:#63b3ed;"></div>Frontend</div>
+    <div class="leg"><div class="leg-line" style="background:#68d391;"></div>Backend / API</div>
+    <div class="leg"><div class="leg-line" style="background:#ed8936;"></div>Stream Pipeline</div>
+    <div class="leg"><div class="leg-line" style="background:#9f7aea;"></div>ML Engine</div>
+    <div class="leg"><div class="leg-line" style="background:#4a5568;"></div>AWS Infra</div>
+    <div class="leg"><div class="leg-dash" style="border-color:#a0aec0;"></div>&nbsp;Namespace</div>
+    <div class="leg"><div style="width:17px;height:17px;border-radius:50%;background:#f6c90e;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#000;">N</div>&nbsp;Step</div>
+  </div>
+
+</div>
+</body>
+</html>
