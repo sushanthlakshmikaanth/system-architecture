@@ -1,619 +1,747 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quantora AI — Full System Architecture</title>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body {
-  background: #eef2f7;
-  font-family: 'Nunito', sans-serif;
-  padding: 28px 20px 52px;
-}
-.page { max-width: 1120px; margin: 0 auto; }
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap');
 
-.page-header { margin-bottom: 20px; }
-.page-title { font-size: 22px; font-weight: 900; color: #1a202c; letter-spacing: -0.5px; }
-.page-sub { font-size: 11px; color: #718096; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Generic reusable ── */
-.arr { color: #a0aec0; font-size: 15px; align-self: center; margin: 0 3px; flex-shrink: 0; }
-.arr-down { text-align: center; color: #a0aec0; font-size: 20px; margin: 3px 0; line-height: 1; }
-.arr-right { font-size: 15px; color: #a0aec0; align-self: center; }
+  :root {
+    --green: #3B6D11;
+    --green-light: #EAF3DE;
+    --green-mid: #639922;
+    --amber: #BA7517;
+    --amber-light: #FAEEDA;
+    --coral: #993C1D;
+    --coral-light: #FAECE7;
+    --teal: #0F6E56;
+    --teal-light: #E1F5EE;
+    --purple: #534AB7;
+    --purple-light: #EEEDFE;
+  }
 
-.nbadge {
-  background: #f6c90e; color: #000;
-  border-radius: 50%; width: 17px; height: 17px; flex-shrink: 0;
-  font-size: 8px; font-weight: 800;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-family: 'JetBrains Mono', monospace;
-  border: 1.5px solid rgba(255,255,255,0.8);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-}
+  body { font-family: 'Syne', sans-serif; background: transparent; padding: 0; }
 
-/* ── Outer AWS border ── */
-.aws-wrap {
-  border: 2px solid #e05252;
-  border-radius: 14px;
-  padding: 20px;
-  background: #fff;
-  position: relative;
-}
-.outer-label {
-  position: absolute; top: -13px; left: 14px;
-  background: #fff; padding: 0 10px;
-  font-size: 10px; font-weight: 800;
-  font-family: 'JetBrains Mono', monospace;
-  letter-spacing: 1.5px; text-transform: uppercase;
-  display: flex; align-items: center; gap: 6px;
-}
-.aws-wrap .outer-label { color: #e05252; }
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 20px 24px 16px;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    gap: 16px;
+  }
 
-/* ── Tier containers ── */
-.tier {
-  border: 2px solid;
-  border-radius: 10px;
-  padding: 14px 16px;
-  position: relative;
-  margin-bottom: 10px;
-  background: #fafbfc;
-}
-.tier:last-child { margin-bottom: 0; }
-.tier-label {
-  position: absolute; top: -12px; left: 14px;
-  padding: 0 8px;
-  font-size: 10px; font-weight: 800;
-  font-family: 'JetBrains Mono', monospace;
-  letter-spacing: 1px;
-  border-radius: 4px;
-  display: flex; align-items: center; gap: 5px;
-}
+  .header-left h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    letter-spacing: -0.5px;
+  }
 
-/* Tier color themes */
-.tier-frontend { border-color: #63b3ed; background: #f0f8ff; }
-.tier-frontend .tier-label { color: #2b6cb0; background: #f0f8ff; border: 1px solid #90cdf4; }
+  .header-left p {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin-top: 4px;
+  }
 
-.tier-backend  { border-color: #68d391; background: #f0fff4; }
-.tier-backend .tier-label { color: #276749; background: #f0fff4; border: 1px solid #9ae6b4; }
+  .stats-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
 
-.tier-stream   { border-color: #ed8936; background: #fffcf5; }
-.tier-stream .tier-label { color: #c05621; background: #fffcf5; border: 1px solid #fbd38d; }
+  .stat-pill {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 0.5px solid;
+  }
 
-.tier-ml       { border-color: #9f7aea; background: #faf5ff; }
-.tier-ml .tier-label { color: #553c9a; background: #faf5ff; border: 1px solid #d6bcfa; }
+  .pill-green { background: var(--green-light); color: var(--green); border-color: var(--green-mid); }
+  .pill-amber { background: var(--amber-light); color: var(--amber); border-color: var(--amber); }
+  .pill-teal  { background: var(--teal-light); color: var(--teal); border-color: var(--teal); }
+  .pill-coral { background: var(--coral-light); color: var(--coral); border-color: var(--coral); }
+  .pill-purple { background: var(--purple-light); color: var(--purple); border-color: var(--purple); }
 
-.tier-infra    { border-color: #4a5568; background: #f7fafc; }
-.tier-infra .tier-label { color: #2d3748; background: #f7fafc; border: 1px solid #a0aec0; }
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    padding: 0 24px;
+    overflow-x: auto;
+  }
 
-/* ── Namespace dashed boxes ── */
-.ns {
-  border: 2px dashed;
-  border-radius: 8px;
-  padding: 10px 12px;
-  position: relative;
-  margin-bottom: 8px;
-  background: rgba(255,255,255,0.6);
-}
-.ns:last-child { margin-bottom: 0; }
-.ns-tag {
-  position: absolute; top: -10px; right: 12px;
-  padding: 1px 8px;
-  font-size: 8px; font-weight: 800;
-  font-family: 'JetBrains Mono', monospace;
-  border-radius: 4px; border: 1px solid;
-  letter-spacing: 0.5px; text-transform: uppercase;
-}
+  .tab {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 16px;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    transition: color 0.2s;
+  }
 
-.ns-react   { border-color: #63b3ed; }
-.ns-react .ns-tag { background: #ebf8ff; color: #2b6cb0; border-color: #90cdf4; }
+  .tab.active {
+    color: var(--color-text-primary);
+    border-bottom-color: var(--color-text-primary);
+  }
 
-.ns-node    { border-color: #68d391; }
-.ns-node .ns-tag { background: #f0fff4; color: #276749; border-color: #9ae6b4; }
+  .section { display: none; padding: 20px 24px; }
+  .section.active { display: block; }
 
-.ns-fastapi { border-color: #48bb78; }
-.ns-fastapi .ns-tag { background: #f0fff4; color: #22543d; border-color: #68d391; }
+  /* Macro bar */
+  .macro-section { margin-bottom: 20px; }
+  .macro-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .macro-bar-wrap { height: 10px; background: var(--color-background-secondary); border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+  .macro-bar { height: 100%; border-radius: 10px; }
 
-.ns-kafka   { border-color: #fc8181; }
-.ns-kafka .ns-tag { background: #fff5f5; color: #742a2a; border-color: #fc8181; }
+  .macro-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
 
-.ns-flink   { border-color: #f6ad55; }
-.ns-flink .ns-tag { background: #fffaf0; color: #744210; border-color: #fbd38d; }
+  .macro-card {
+    border-radius: var(--border-radius-md);
+    padding: 12px 14px;
+    border: 0.5px solid;
+  }
 
-.ns-graph   { border-color: #4299e1; }
-.ns-graph .ns-tag { background: #ebf8ff; color: #2b6cb0; border-color: #90cdf4; }
+  .macro-card .num {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1;
+  }
 
-.ns-scoring { border-color: #e53e3e; }
-.ns-scoring .ns-tag { background: #fff5f5; color: #742a2a; border-color: #feb2b2; }
+  .macro-card .unit {
+    font-size: 11px;
+    margin-top: 2px;
+    opacity: 0.8;
+  }
 
-.ns-explain { border-color: #d69e2e; }
-.ns-explain .ns-tag { background: #fffff0; color: #744210; border-color: #ecc94b; }
+  .macro-card .label {
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 6px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
 
-.ns-aws     { border-color: #ed8936; }
-.ns-aws .ns-tag { background: #fffaf0; color: #c05621; border-color: #fbd38d; }
+  /* Meal plan */
+  .meal-timeline { position: relative; }
+  .meal-item {
+    display: flex;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    align-items: flex-start;
+  }
 
-/* ── Service icon ── */
-.svc {
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  position: relative; flex-shrink: 0;
-}
-.svc-box {
-  width: 50px; height: 50px;
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px;
-  border: 1.5px solid;
-  background: #fff;
-  transition: transform 0.15s, box-shadow 0.15s;
-  cursor: default;
-}
-.svc-box:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-.svc-label {
-  font-size: 9px; font-weight: 700; color: #4a5568;
-  text-align: center; font-family: 'JetBrains Mono', monospace;
-  line-height: 1.3; max-width: 56px;
-}
-.svc-badge {
-  position: absolute; top: -8px; right: -7px;
-}
+  .meal-item:last-child { border-bottom: none; }
 
-/* ── Pod card ── */
-.pod {
-  border: 1.5px solid;
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: #fff;
-  position: relative;
-  flex: 1;
-  min-width: 120px;
-}
-.pod-header {
-  display: flex; align-items: center; gap: 5px; margin-bottom: 6px;
-}
-.pod-chip {
-  font-size: 8px; font-weight: 800; padding: 2px 7px;
-  border-radius: 10px; font-family: 'JetBrains Mono', monospace;
-  color: #fff; letter-spacing: 0.5px;
-}
-.strip {
-  border-radius: 5px; padding: 4px 8px;
-  font-size: 9px; font-weight: 700; text-align: center;
-  margin-bottom: 3px;
-  font-family: 'JetBrains Mono', monospace; line-height: 1.3;
-}
-.s-blue   { background: #bee3f8; color: #2c5282; border: 1px solid #90cdf4; }
-.s-green  { background: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
-.s-yellow { background: #fefcbf; color: #744210; border: 1px solid #f6e05e; }
-.s-purple { background: #e9d8fd; color: #553c9a; border: 1px solid #d6bcfa; }
-.s-red    { background: #fed7d7; color: #742a2a; border: 1px solid #feb2b2; }
-.s-orange { background: #feebc8; color: #7b341e; border: 1px solid #fbd38d; }
-.s-teal   { background: #b2f5ea; color: #234e52; border: 1px solid #81e6d9; }
+  .meal-time {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    min-width: 48px;
+    padding-top: 3px;
+  }
 
-.pod-note { font-size: 8px; color: #a0aec0; font-family: 'JetBrains Mono', monospace; margin-top: 4px; line-height: 1.4; }
+  .meal-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
 
-/* ── Rows ── */
-.h-row {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-}
-.pod-row {
-  display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap;
-}
+  .meal-content { flex: 1; }
 
-/* ── Decision row ── */
-.decision-row {
-  display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 10px;
-}
-.d-pill {
-  display: flex; align-items: center; gap: 6px;
-  padding: 8px 20px; border-radius: 8px; border: 1.5px solid;
-  font-size: 11px; font-weight: 800;
-  font-family: 'JetBrains Mono', monospace; letter-spacing: 1px;
-}
-.d-safe   { border-color: #38a169; background: #f0fff4; color: #276749; }
-.d-review { border-color: #d69e2e; background: #fffaf0; color: #744210; }
-.d-fraud  { border-color: #e53e3e; background: #fff5f5; color: #742a2a; }
+  .meal-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 2px;
+  }
 
-/* ── Score bar ── */
-.sw-row { display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#718096; margin-bottom:4px; }
-.sw-label { width:120px; flex-shrink:0; }
-.sw-w { color:#e53e3e; font-weight:800; width:28px; flex-shrink:0; }
-.sw-track { flex:1; height:4px; background:rgba(0,0,0,0.07); border-radius:2px; overflow:hidden; }
-.sw-fill  { height:100%; border-radius:2px; }
+  .meal-desc {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    margin-bottom: 4px;
+  }
 
-/* ── Legend ── */
-.legend { display:flex; gap:14px; flex-wrap:wrap; margin-top:14px; padding:10px 14px; background:#fff; border-radius:8px; border:1px solid #e2e8f0; }
-.leg { display:flex; align-items:center; gap:5px; font-size:9px; font-family:'JetBrains Mono',monospace; color:#718096; }
-.leg-line { width:18px; height:3px; border-radius:2px; }
-.leg-dash { width:18px; height:0; border-top:2px dashed; }
+  .meal-cals {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 10px;
+    display: inline-block;
+  }
 
-/* tag row for quick tools */
-.tag-row { display:flex; gap:5px; flex-wrap:wrap; margin-top:5px; }
-.tag { font-size:8px; font-weight:700; padding:2px 8px; border-radius:12px; font-family:'JetBrains Mono',monospace; border:1px solid; }
+  /* Workout */
+  .day-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .day-btn {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    background: var(--color-background-secondary);
+    color: var(--color-text-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+    transition: all 0.15s;
+  }
+
+  .day-btn.active {
+    background: var(--color-text-primary);
+    color: var(--color-background-primary);
+    border-color: transparent;
+  }
+
+  .day-btn.rest {
+    background: var(--teal-light);
+    color: var(--teal);
+    border-color: var(--teal);
+  }
+
+  .workout-panel { display: none; }
+  .workout-panel.active { display: block; }
+
+  .focus-tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+  }
+
+  .exercise-table { width: 100%; border-collapse: collapse; }
+
+  .exercise-table th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    padding: 0 8px 8px 0;
+    text-align: left;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+  }
+
+  .exercise-table td {
+    padding: 10px 8px 10px 0;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    font-size: 13px;
+    vertical-align: top;
+  }
+
+  .exercise-table tr:last-child td { border-bottom: none; }
+
+  .ex-name { font-weight: 600; color: var(--color-text-primary); }
+  .ex-tip { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+
+  .badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .rest-day {
+    text-align: center;
+    padding: 32px 0;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+  }
+
+  .rest-day .rest-icon {
+    font-size: 36px;
+    margin-bottom: 10px;
+  }
+
+  /* Tips */
+  .tips-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .tip-card {
+    border-radius: var(--border-radius-lg);
+    padding: 14px 16px;
+    border: 0.5px solid;
+  }
+
+  .tip-card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .tip-card p {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+  }
+
+  @media (max-width: 500px) {
+    .tips-grid { grid-template-columns: 1fr; }
+    .macro-grid { grid-template-columns: repeat(3, 1fr); }
+  }
 </style>
-</head>
-<body>
-<div class="page">
 
-  <div class="page-header">
-    <div class="page-title">Quantora AI — Full System Architecture</div>
-    <div class="page-sub">React · Node.js · FastAPI · Python · Kafka · Flink · Redis · Neo4j · XGBoost · SHAP · AWS · Streamlit</div>
+<div style="background: var(--color-background-primary); border-radius: var(--border-radius-lg); border: 0.5px solid var(--color-border-tertiary); overflow: hidden;">
+
+  <div class="header">
+    <div class="header-left">
+      <h1>Fitness Plan</h1>
+      <p>Home workout · Lean bulk · 5'8" · 49kg</p>
+    </div>
+    <div class="stats-row">
+      <span class="stat-pill pill-amber">2700 kcal/day</span>
+      <span class="stat-pill pill-green">High protein</span>
+      <span class="stat-pill pill-teal">Muscle gain</span>
+    </div>
   </div>
 
-  <!-- ══════════════════════════════════════════
-       AWS Account wrapper
-  ══════════════════════════════════════════ -->
-  <div class="aws-wrap">
-    <span class="outer-label">☁ AWS Account</span>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('diet')">Diet</button>
+    <button class="tab" onclick="switchTab('workout')">Workout</button>
+    <button class="tab" onclick="switchTab('tips')">Tips</button>
+  </div>
 
-    <!-- ══ TIER 1: FRONTEND ══ -->
-    <div class="tier tier-frontend">
-      <span class="tier-label">🖥 Frontend Layer</span>
-      <div class="pod-row" style="margin-top:4px;">
+  <!-- DIET TAB -->
+  <div id="tab-diet" class="section active">
 
-        <!-- React App -->
-        <div class="ns ns-react" style="flex:2; margin-bottom:0;">
-          <span class="ns-tag">React App</span>
-          <div class="pod-row">
-            <div class="svc">
-              <div class="svc-box" style="border-color:#63b3ed; background:#ebf8ff; font-size:26px;">⚛</div>
-              <span class="svc-label">React<br/>Frontend</span>
-            </div>
-            <div class="arr">→</div>
-            <div class="pod" style="border-color:#63b3ed; flex:1;">
-              <div class="pod-header">
-                <span class="nbadge">1</span>
-                <span class="pod-chip" style="background:#3182ce;">REACT</span>
-              </div>
-              <div class="strip s-blue">Dashboard UI</div>
-              <div class="strip s-blue">Transaction Monitor</div>
-              <div class="strip s-blue">Alert Viewer</div>
-              <div class="pod-note">User-facing fraud<br/>monitoring interface</div>
-            </div>
-            <div class="arr">→</div>
-            <!-- Streamlit -->
-            <div class="pod" style="border-color:#63b3ed; flex:1;">
-              <div class="pod-header">
-                <span class="nbadge">2</span>
-                <span class="pod-chip" style="background:#3182ce;">STREAMLIT</span>
-              </div>
-              <div class="strip s-blue">Analytics Dashboard</div>
-              <div class="strip s-blue">Graph Visualizer</div>
-              <div class="strip s-blue">SHAP Plots</div>
-              <div class="pod-note">Python-native analyst<br/>dashboard &amp; explainability</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="arr">→</div>
-
-        <!-- Users -->
-        <div class="svc">
-          <div class="svc-box" style="border-color:#a0aec0;">👥</div>
-          <span class="svc-label">Users /<br/>Analysts</span>
-        </div>
-
+    <div class="macro-grid">
+      <div class="macro-card" style="background: var(--coral-light); border-color: var(--coral);">
+        <div class="num" style="color: var(--coral);">188g</div>
+        <div class="unit" style="color: var(--coral);">per day</div>
+        <div class="label" style="color: var(--coral);">Protein</div>
+      </div>
+      <div class="macro-card" style="background: var(--amber-light); border-color: var(--amber);">
+        <div class="num" style="color: var(--amber);">338g</div>
+        <div class="unit" style="color: var(--amber);">per day</div>
+        <div class="label" style="color: var(--amber);">Carbs</div>
+      </div>
+      <div class="macro-card" style="background: var(--teal-light); border-color: var(--teal);">
+        <div class="num" style="color: var(--teal);">75g</div>
+        <div class="unit" style="color: var(--teal);">per day</div>
+        <div class="label" style="color: var(--teal);">Fats</div>
       </div>
     </div>
 
-    <div class="arr-down">↓</div>
-
-    <!-- ══ TIER 2: BACKEND / API ══ -->
-    <div class="tier tier-backend">
-      <span class="tier-label">⚙ Backend / API Layer</span>
-      <div class="pod-row" style="margin-top:4px;">
-
-        <!-- Node.js -->
-        <div class="ns ns-node" style="flex:1; margin-bottom:0;">
-          <span class="ns-tag">Node.js · API Gateway</span>
-          <div class="pod" style="border-color:#68d391;">
-            <div class="pod-header">
-              <span class="nbadge">3</span>
-              <span class="pod-chip" style="background:#38a169;">NODE.JS</span>
-            </div>
-            <div class="strip s-green">REST API Server</div>
-            <div class="strip s-green">Auth · JWT</div>
-            <div class="strip s-green">Rate Limiter</div>
-            <div class="strip s-green">WebSocket Events</div>
-            <div class="pod-note">API gateway &amp; real-time<br/>event push to React UI</div>
-          </div>
-        </div>
-
-        <div class="arr">→</div>
-
-        <!-- FastAPI -->
-        <div class="ns ns-fastapi" style="flex:1.5; margin-bottom:0;">
-          <span class="ns-tag">FastAPI · ML Service</span>
-          <div class="pod" style="border-color:#48bb78;">
-            <div class="pod-header">
-              <span class="nbadge">4</span>
-              <span class="pod-chip" style="background:#276749;">FASTAPI</span>
-            </div>
-            <div class="strip s-green">POST /score-transaction</div>
-            <div class="strip s-green">GET  /explain/{txn_id}</div>
-            <div class="strip s-green">GET  /graph/{account_id}</div>
-            <div class="strip s-teal">Python · Uvicorn · Pydantic</div>
-            <div class="pod-note">Serves ML predictions &amp;<br/>graph queries to Node.js</div>
-          </div>
-        </div>
-
-        <div class="arr">→</div>
-
-        <!-- Python Algorithms -->
-        <div class="ns ns-fastapi" style="flex:1.5; border-color:#805ad5; margin-bottom:0;">
-          <span class="ns-tag" style="color:#553c9a; border-color:#9f7aea; background:#faf5ff;">Python Algorithm Engine</span>
-          <div class="pod" style="border-color:#9f7aea;">
-            <div class="pod-header">
-              <span class="nbadge">5</span>
-              <span class="pod-chip" style="background:#6b46c1;">PYTHON</span>
-            </div>
-            <div class="strip s-purple">Fraud Detection Logic</div>
-            <div class="strip s-purple">Feature Pipeline</div>
-            <div class="strip s-purple">Model Inference</div>
-            <div class="strip s-purple">Graph Computation</div>
-            <div class="pod-note">Core algorithm layer<br/>called by FastAPI</div>
-          </div>
-        </div>
-
-      </div>
+    <div class="macro-section">
+      <div class="macro-label"><span>Protein (28%)</span><span style="font-family:'DM Mono',monospace;font-size:11px;">752 kcal</span></div>
+      <div class="macro-bar-wrap"><div class="macro-bar" style="width:28%;background:var(--coral);"></div></div>
+      <div class="macro-label"><span>Carbs (50%)</span><span style="font-family:'DM Mono',monospace;font-size:11px;">1350 kcal</span></div>
+      <div class="macro-bar-wrap"><div class="macro-bar" style="width:50%;background:var(--amber);"></div></div>
+      <div class="macro-label"><span>Fats (25%)</span><span style="font-family:'DM Mono',monospace;font-size:11px;">675 kcal</span></div>
+      <div class="macro-bar-wrap"><div class="macro-bar" style="width:25%;background:var(--teal);"></div></div>
     </div>
 
-    <div class="arr-down">↓</div>
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--color-text-secondary);margin-bottom:10px;">Meal Plan</div>
 
-    <!-- ══ TIER 3: STREAM PROCESSING ══ -->
-    <div class="tier tier-stream">
-      <span class="tier-label">⚡ Stream Processing Pipeline</span>
+    <div class="meal-timeline">
 
-      <!-- L1: Ingestion -->
-      <div class="ns ns-kafka">
-        <span class="ns-tag">Layer 1 · Data Ingestion</span>
-        <div class="pod-row">
-          <div class="svc">
-            <div class="svc-box" style="border-color:#fc8181; background:#fff5f5; font-size:20px;">📨</div>
-            <span class="svc-label">TX<br/>Event</span>
-          </div>
-          <div class="arr">→</div>
-          <div class="pod" style="border-color:#fc8181; flex:1;">
-            <div class="pod-header">
-              <span class="nbadge">6</span>
-              <span class="pod-chip" style="background:#e53e3e;">KAFKA</span>
-            </div>
-            <div class="strip s-red">Apache Kafka</div>
-            <div class="strip s-red">Topic: transactions</div>
-            <div class="strip s-red">Consumer Groups</div>
-            <div class="pod-note">Zero-loss event stream<br/>capture &amp; distribution</div>
-          </div>
-          <div class="arr">→</div>
-          <div style="font-size:9px; font-family:'JetBrains Mono',monospace; color:#a0aec0; align-self:center; text-align:center;">raw<br/>stream</div>
-          <div class="arr">→</div>
-
-          <!-- Flink -->
-          <div class="pod" style="border-color:#f6ad55; flex:2;">
-            <div class="pod-header">
-              <span class="nbadge">7</span>
-              <span class="pod-chip" style="background:#ed8936;">FLINK + REDIS</span>
-            </div>
-            <div class="pod-row" style="gap:6px;">
-              <div style="flex:1;">
-                <div class="strip s-orange">Apache Flink</div>
-                <div class="strip s-orange">Stateful Streaming</div>
-                <div class="strip s-orange">Windowed Aggregation</div>
-              </div>
-              <div style="flex:1;">
-                <div class="strip s-red">Redis Cache</div>
-                <div class="strip s-red">User History</div>
-                <div class="strip s-red">Device Registry</div>
-              </div>
-            </div>
-            <div class="tag-row" style="margin-top:6px;">
-              <span class="tag" style="border-color:#fed7d7;color:#742a2a;background:#fff5f5;">⚠ Amount 20×</span>
-              <span class="tag" style="border-color:#fed7d7;color:#742a2a;background:#fff5f5;">⚠ 3AM TX</span>
-              <span class="tag" style="border-color:#fed7d7;color:#742a2a;background:#fff5f5;">⚠ New device</span>
-              <span class="tag" style="border-color:#fed7d7;color:#742a2a;background:#fff5f5;">⚠ 2-day acct</span>
-            </div>
-          </div>
+      <div class="meal-item">
+        <span class="meal-time">7:00 AM</span>
+        <div class="meal-dot" style="background:var(--amber);"></div>
+        <div class="meal-content">
+          <div class="meal-name">Breakfast</div>
+          <div class="meal-desc">4 eggs (scrambled/omelette) + 2 slices whole wheat toast + 1 banana + 200ml whole milk</div>
+          <span class="meal-cals" style="background:var(--amber-light);color:var(--amber);">~620 kcal · 36g protein</span>
         </div>
       </div>
 
-      <div class="arr-down">↓</div>
+      <div class="meal-item">
+        <span class="meal-time">10:30 AM</span>
+        <div class="meal-dot" style="background:var(--teal);"></div>
+        <div class="meal-content">
+          <div class="meal-name">Mid-morning Snack</div>
+          <div class="meal-desc">200g Greek yogurt + 2 tbsp peanut butter + 1 apple or handful of roasted chana</div>
+          <span class="meal-cals" style="background:var(--teal-light);color:var(--teal);">~380 kcal · 22g protein</span>
+        </div>
+      </div>
 
-      <!-- L2: Graph -->
-      <div class="ns ns-graph">
-        <span class="ns-tag">Layers 2 & 3 · Graph Update + Analytics</span>
-        <div class="pod-row">
-          <div class="pod" style="border-color:#4299e1; flex:1;">
-            <div class="pod-header">
-              <span class="nbadge">8</span>
-              <span class="pod-chip" style="background:#2b6cb0;">NEO4J</span>
-            </div>
-            <div class="strip s-blue">Graph Update</div>
-            <div class="strip s-blue">Node: Account / Device</div>
-            <div class="strip s-blue">Edge: Transaction</div>
-            <div class="pod-note">Persistent graph DB<br/>A ══ B relationship store</div>
-          </div>
-          <div class="arr">→</div>
-          <div class="pod" style="border-color:#4299e1; flex:1;">
-            <div class="pod-header">
-              <span class="nbadge">9</span>
-              <span class="pod-chip" style="background:#2b6cb0;">NETWORKX</span>
-            </div>
-            <div class="strip s-blue">In-memory Graph</div>
-            <div class="strip s-blue">Subgraph Extraction</div>
-            <div class="strip s-blue">Pattern Matching</div>
-            <div class="pod-note">Python graph ops<br/>Fan-in · Fan-out · Cycles</div>
-          </div>
-          <div class="arr">→</div>
-          <div class="pod" style="border-color:#4299e1; flex:1.2;">
-            <div class="pod-header">
-              <span class="nbadge">10</span>
-              <span class="pod-chip" style="background:#2b6cb0;">LOUVAIN</span>
-            </div>
-            <div class="strip s-blue">Community Detection</div>
-            <div class="strip s-purple">PageRank Centrality</div>
-            <div class="strip s-blue">Fraud Cluster Score</div>
-            <div class="pod-note">python-louvain · NetworkX<br/>Finds gang connections</div>
-          </div>
+      <div class="meal-item">
+        <span class="meal-time">1:00 PM</span>
+        <div class="meal-dot" style="background:var(--coral);"></div>
+        <div class="meal-content">
+          <div class="meal-name">Lunch</div>
+          <div class="meal-desc">1.5 cups cooked rice + 150g chicken / paneer curry + dal + 1 cup curd + salad</div>
+          <span class="meal-cals" style="background:var(--coral-light);color:var(--coral);">~720 kcal · 42g protein</span>
+        </div>
+      </div>
+
+      <div class="meal-item">
+        <span class="meal-time">4:00 PM</span>
+        <div class="meal-dot" style="background:var(--purple);"></div>
+        <div class="meal-content">
+          <div class="meal-name">Pre-workout Snack</div>
+          <div class="meal-desc">2 rotis + 100g paneer bhurji or 2 boiled eggs + 1 banana</div>
+          <span class="meal-cals" style="background:var(--purple-light);color:var(--purple);">~420 kcal · 22g protein</span>
+        </div>
+      </div>
+
+      <div class="meal-item">
+        <span class="meal-time">7:30 PM</span>
+        <div class="meal-dot" style="background:var(--green);"></div>
+        <div class="meal-content">
+          <div class="meal-name">Post-workout Dinner</div>
+          <div class="meal-desc">150g grilled chicken / fish / 200g tofu + 1.5 cups cooked oats or sweet potato + steamed veggies</div>
+          <span class="meal-cals" style="background:var(--green-light);color:var(--green);">~620 kcal · 45g protein</span>
+        </div>
+      </div>
+
+      <div class="meal-item">
+        <span class="meal-time">9:30 PM</span>
+        <div class="meal-dot" style="background:var(--amber);"></div>
+        <div class="meal-content">
+          <div class="meal-name">Night Protein</div>
+          <div class="meal-desc">300ml warm milk + 1 tbsp peanut butter + optional: 50g cottage cheese</div>
+          <span class="meal-cals" style="background:var(--amber-light);color:var(--amber);">~280 kcal · 17g protein</span>
         </div>
       </div>
 
     </div>
 
-    <div class="arr-down">↓</div>
+    <div style="margin-top:14px;padding:12px 14px;background:var(--green-light);border-radius:var(--border-radius-md);border:0.5px solid var(--green-mid);">
+      <span style="font-size:12px;color:var(--green);font-weight:600;">Total:</span>
+      <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--green);margin-left:8px;font-weight:500;">~2,700 kcal · ~184g protein · ~340g carbs · ~73g fats</span>
+    </div>
 
-    <!-- ══ TIER 4: ML ENGINE ══ -->
-    <div class="tier tier-ml">
-      <span class="tier-label">🤖 ML Scoring & Explainability</span>
-      <div class="pod-row" style="margin-top:4px;">
+  </div>
 
-        <!-- Scoring -->
-        <div class="ns ns-scoring" style="flex:1.5; margin-bottom:0;">
-          <span class="ns-tag">Layer 4 · Risk Scoring</span>
-          <div class="pod" style="border-color:#e53e3e;">
-            <div class="pod-header">
-              <span class="nbadge">11</span>
-              <span class="pod-chip" style="background:#e53e3e;">XGBOOST</span>
-            </div>
-            <div class="strip s-red">XGBoost Classifier</div>
-            <div class="strip s-green">Scikit-learn Preprocessing</div>
-            <div style="margin:6px 0 2px;">
-              <div class="sw-row"><span class="sw-label">Transaction Risk</span><span class="sw-w">×0.4</span><div class="sw-track"><div class="sw-fill" style="width:40%;background:#e53e3e;"></div></div></div>
-              <div class="sw-row"><span class="sw-label">Behavioral Risk</span><span class="sw-w">×0.3</span><div class="sw-track"><div class="sw-fill" style="width:30%;background:#ed8936;"></div></div></div>
-              <div class="sw-row"><span class="sw-label">Graph Risk</span><span class="sw-w">×0.3</span><div class="sw-track"><div class="sw-fill" style="width:30%;background:#9f7aea;"></div></div></div>
-            </div>
-            <div style="height:5px;border-radius:3px;background:linear-gradient(to right,#38a169 40%,#d69e2e 30%,#e53e3e 30%);margin-top:6px;"></div>
-            <div style="display:flex;justify-content:space-between;font-size:8px;color:#a0aec0;font-family:'JetBrains Mono',monospace;margin-top:2px;">
-              <span>0.0 SAFE</span><span>0.4</span><span>0.7</span><span>1.0 FRAUD</span>
-            </div>
-          </div>
-        </div>
+  <!-- WORKOUT TAB -->
+  <div id="tab-workout" class="section">
 
-        <div class="arr">→</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px;">6-day push/pull/legs split · Home workout · No equipment needed</div>
 
-        <!-- Explainability -->
-        <div class="ns ns-explain" style="flex:2; margin-bottom:0;">
-          <span class="ns-tag">Layer 5 · Explainability</span>
-          <div class="pod-row">
-            <div class="pod" style="border-color:#d69e2e; flex:1;">
-              <div class="pod-header">
-                <span class="nbadge">12</span>
-                <span class="pod-chip" style="background:#b7791f;">SHAP</span>
-              </div>
-              <div class="strip s-yellow">SHAP Values</div>
-              <div class="strip s-yellow">Feature Importance</div>
-              <div class="strip s-yellow">Waterfall Plot</div>
-              <div class="pod-note">Why each feature<br/>drove the decision</div>
-            </div>
-            <div class="arr">+</div>
-            <div class="pod" style="border-color:#d69e2e; flex:1;">
-              <div class="pod-header">
-                <span class="nbadge">13</span>
-                <span class="pod-chip" style="background:#b7791f;">NEO4J TRACER</span>
-              </div>
-              <div class="strip s-yellow">Path Traversal</div>
-              <div class="strip s-yellow">Fraud Ring Trace</div>
-              <div class="strip s-yellow">Confidence: 89%</div>
-              <div class="pod-note">Graph-level reasoning<br/>for decisions</div>
-            </div>
-          </div>
-          <div style="margin-top:8px;padding:6px 10px;border:1px solid #f6e05e;border-radius:6px;background:#fff;font-size:9px;font-family:'JetBrains Mono',monospace;color:#744210;">
-            → Amount 20× baseline &nbsp;·&nbsp; 3AM TX &nbsp;·&nbsp; Cluster of 8 flagged accts &nbsp;·&nbsp; Device in fraud ring
-          </div>
-        </div>
+    <div class="day-tabs">
+      <button class="day-btn active" onclick="switchDay('mon')">Mon</button>
+      <button class="day-btn" onclick="switchDay('tue')">Tue</button>
+      <button class="day-btn" onclick="switchDay('wed')">Wed</button>
+      <button class="day-btn" onclick="switchDay('thu')">Thu</button>
+      <button class="day-btn" onclick="switchDay('fri')">Fri</button>
+      <button class="day-btn" onclick="switchDay('sat')">Sat</button>
+      <button class="day-btn rest" onclick="switchDay('sun')">Sun ☽</button>
+    </div>
 
+    <!-- Monday: Push -->
+    <div id="day-mon" class="workout-panel active">
+      <span class="focus-tag" style="background:var(--coral-light);color:var(--coral);border:0.5px solid var(--coral);">Push — Chest · Shoulders · Triceps</span>
+      <table class="exercise-table">
+        <thead>
+          <tr>
+            <th style="width:40%">Exercise</th>
+            <th>Sets × Reps</th>
+            <th>Rest</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="ex-name">Push-ups</div><div class="ex-tip">Wide grip for chest focus</div></td>
+            <td><span class="badge" style="background:var(--coral-light);color:var(--coral);">4 × 15–20</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">60s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Diamond Push-ups</div><div class="ex-tip">Elbows close to body</div></td>
+            <td><span class="badge" style="background:var(--coral-light);color:var(--coral);">3 × 12</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">60s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Pike Push-ups</div><div class="ex-tip">Hips high, head through arms</div></td>
+            <td><span class="badge" style="background:var(--coral-light);color:var(--coral);">3 × 10–12</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">75s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Decline Push-ups</div><div class="ex-tip">Feet on chair/bed</div></td>
+            <td><span class="badge" style="background:var(--coral-light);color:var(--coral);">3 × 12</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">60s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Tricep Dips</div><div class="ex-tip">Use chair or bed edge</div></td>
+            <td><span class="badge" style="background:var(--coral-light);color:var(--coral);">3 × 15</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">60s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Shoulder Taps (plank)</div><div class="ex-tip">Core tight, hips still</div></td>
+            <td><span class="badge" style="background:var(--coral-light);color:var(--coral);">3 × 20</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">45s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tuesday: Pull -->
+    <div id="day-tue" class="workout-panel">
+      <span class="focus-tag" style="background:var(--purple-light);color:var(--purple);border:0.5px solid var(--purple);">Pull — Back · Biceps</span>
+      <table class="exercise-table">
+        <thead>
+          <tr><th style="width:40%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="ex-name">Pull-ups / Chin-ups</div><div class="ex-tip">Use door frame bar or table rows</div></td>
+            <td><span class="badge" style="background:var(--purple-light);color:var(--purple);">4 × 6–10</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">90s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Inverted Rows</div><div class="ex-tip">Under table, chest to bar</div></td>
+            <td><span class="badge" style="background:var(--purple-light);color:var(--purple);">4 × 12</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">75s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Superman Hold</div><div class="ex-tip">2s hold at top</div></td>
+            <td><span class="badge" style="background:var(--purple-light);color:var(--purple);">3 × 15</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">60s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Towel Bicep Curl</div><div class="ex-tip">Foot on towel, pull up</div></td>
+            <td><span class="badge" style="background:var(--purple-light);color:var(--purple);">3 × 12 each</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">60s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Reverse Snow Angels</div><div class="ex-tip">Prone, arms sweep wide</div></td>
+            <td><span class="badge" style="background:var(--purple-light);color:var(--purple);">3 × 15</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">45s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Wednesday: Legs -->
+    <div id="day-wed" class="workout-panel">
+      <span class="focus-tag" style="background:var(--green-light);color:var(--green);border:0.5px solid var(--green-mid);">Legs — Quads · Hamstrings · Glutes · Calves</span>
+      <table class="exercise-table">
+        <thead>
+          <tr><th style="width:40%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="ex-name">Bodyweight Squats</div><div class="ex-tip">Pause 2s at bottom</div></td>
+            <td><span class="badge" style="background:var(--green-light);color:var(--green);">4 × 20</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">60s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Bulgarian Split Squats</div><div class="ex-tip">Rear foot on chair</div></td>
+            <td><span class="badge" style="background:var(--green-light);color:var(--green);">3 × 12 each</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">75s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Glute Bridge</div><div class="ex-tip">1s squeeze at top</div></td>
+            <td><span class="badge" style="background:var(--green-light);color:var(--green);">4 × 20</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">60s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Walking Lunges</div><div class="ex-tip">10 each leg per set</div></td>
+            <td><span class="badge" style="background:var(--green-light);color:var(--green);">3 × 10 each</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">60s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Calf Raises</div><div class="ex-tip">Slow 3s up, 3s down</div></td>
+            <td><span class="badge" style="background:var(--green-light);color:var(--green);">4 × 25</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">45s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Thursday: Push (repeat) -->
+    <div id="day-thu" class="workout-panel">
+      <span class="focus-tag" style="background:var(--coral-light);color:var(--coral);border:0.5px solid var(--coral);">Push (variation) — Chest · Shoulders · Triceps</span>
+      <table class="exercise-table">
+        <thead>
+          <tr><th style="width:40%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="ex-name">Archer Push-ups</div><div class="ex-tip">Shift weight to one arm</div></td>
+            <td><span class="badge" style="background:var(--coral-light);color:var(--coral);">3 × 8 each</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">75s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Push-up + Rotation</div><div class="ex-tip">Rotate into side plank</div></td>
+            <td><span class="badge" style="background:var(--coral-light);color:var(--coral);">3 × 10 each</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">60s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Handstand Hold (wall)</div><div class="ex-tip">Build to 30–60s total</div></td>
+            <td><span class="badge" style="background:var(--coral-light);color:var(--coral);">3 × 20s</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">90s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Tricep Dips</div><div class="ex-tip">Slow descent 3s</div></td>
+            <td><span class="badge" style="background:var(--coral-light);color:var(--coral);">4 × 15</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">60s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Plank to Downdog</div><div class="ex-tip">Flow smoothly</div></td>
+            <td><span class="badge" style="background:var(--coral-light);color:var(--coral);">3 × 12</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">45s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Friday: Pull + Legs -->
+    <div id="day-fri" class="workout-panel">
+      <span class="focus-tag" style="background:var(--teal-light);color:var(--teal);border:0.5px solid var(--teal);">Full Body — Pull + Core + Legs</span>
+      <table class="exercise-table">
+        <thead>
+          <tr><th style="width:40%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="ex-name">Pull-ups / Chin-ups</div><div class="ex-tip">Add negatives if 6 reps+</div></td>
+            <td><span class="badge" style="background:var(--teal-light);color:var(--teal);">4 × max</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">90s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Jump Squats</div><div class="ex-tip">Land soft, deep squat</div></td>
+            <td><span class="badge" style="background:var(--teal-light);color:var(--teal);">4 × 15</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">60s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Ab Wheel (or plank)</div><div class="ex-tip">Control the rollout</div></td>
+            <td><span class="badge" style="background:var(--teal-light);color:var(--teal);">3 × 10</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">60s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Pistol Squat Progression</div><div class="ex-tip">Assisted with door frame</div></td>
+            <td><span class="badge" style="background:var(--teal-light);color:var(--teal);">3 × 6 each</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">75s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Mountain Climbers</div><div class="ex-tip">Fast pace, core tight</div></td>
+            <td><span class="badge" style="background:var(--teal-light);color:var(--teal);">3 × 30s</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">45s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Saturday: Core + Cardio -->
+    <div id="day-sat" class="workout-panel">
+      <span class="focus-tag" style="background:var(--amber-light);color:var(--amber);border:0.5px solid var(--amber);">Core · Cardio · Flexibility</span>
+      <table class="exercise-table">
+        <thead>
+          <tr><th style="width:40%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="ex-name">Plank</div><div class="ex-tip">Build to 2 min straight</div></td>
+            <td><span class="badge" style="background:var(--amber-light);color:var(--amber);">3 × 60s</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">45s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Bicycle Crunches</div><div class="ex-tip">Slow, controlled</div></td>
+            <td><span class="badge" style="background:var(--amber-light);color:var(--amber);">3 × 20</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">45s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Leg Raises</div><div class="ex-tip">Don't let feet touch floor</div></td>
+            <td><span class="badge" style="background:var(--amber-light);color:var(--amber);">4 × 15</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">45s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Burpees</div><div class="ex-tip">Cardio finisher</div></td>
+            <td><span class="badge" style="background:var(--amber-light);color:var(--amber);">4 × 10</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">60s</td>
+          </tr>
+          <tr>
+            <td><div class="ex-name">Stretching / Yoga flow</div><div class="ex-tip">Full body, 20–30 min</div></td>
+            <td><span class="badge" style="background:var(--amber-light);color:var(--amber);">1 × 20 min</span></td>
+            <td style="color:var(--color-text-secondary);font-size:13px;">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Sunday: Rest -->
+    <div id="day-sun" class="workout-panel">
+      <div class="rest-day">
+        <div class="rest-icon">🌙</div>
+        <div style="font-weight:700;font-size:16px;color:var(--color-text-primary);margin-bottom:6px;">Rest Day</div>
+        <div>Light walk, stretch, hydrate well. Sleep 8h+. Your muscles grow on rest days.</div>
       </div>
     </div>
 
-    <div class="arr-down">↓</div>
+  </div>
 
-    <!-- Decision -->
-    <div class="decision-row">
-      <div class="d-pill d-safe">✅ &nbsp;SAFE &nbsp;<span style="font-weight:400;font-size:9px;opacity:0.6;">0.0–0.4</span></div>
-      <div class="d-pill d-review">⚠ &nbsp;REVIEW &nbsp;<span style="font-weight:400;font-size:9px;opacity:0.6;">0.4–0.7</span></div>
-      <div class="d-pill d-fraud">❌ &nbsp;FRAUD &nbsp;<span style="font-weight:400;font-size:9px;opacity:0.6;">0.7–1.0</span></div>
-    </div>
-
-    <div class="arr-down">↓</div>
-
-    <!-- ══ TIER 5: AWS INFRASTRUCTURE ══ -->
-    <div class="tier tier-infra" style="margin-bottom:0;">
-      <span class="tier-label">☁ AWS Infrastructure</span>
-      <div class="ns ns-aws" style="margin-bottom:0;">
-        <span class="ns-tag">AWS Services</span>
-        <div class="h-row" style="justify-content:space-around; flex-wrap:wrap; gap:14px; padding:4px 0;">
-
-          <div class="svc">
-            <span class="svc-badge"><span class="nbadge">14</span></span>
-            <div class="svc-box" style="border-color:#f6ad55; background:#fffaf0;">🖥</div>
-            <span class="svc-label">EC2<br/>Instances</span>
-          </div>
-
-          <div class="svc">
-            <span class="svc-badge"><span class="nbadge">15</span></span>
-            <div class="svc-box" style="border-color:#68d391; background:#f0fff4;">🪣</div>
-            <span class="svc-label">S3<br/>Storage</span>
-          </div>
-
-          <div class="svc">
-            <span class="svc-badge"><span class="nbadge">16</span></span>
-            <div class="svc-box" style="border-color:#4299e1; background:#ebf8ff;">⚖️</div>
-            <span class="svc-label">ELB<br/>Load Bal.</span>
-          </div>
-
-          <div class="svc">
-            <span class="svc-badge"><span class="nbadge">17</span></span>
-            <div class="svc-box" style="border-color:#b794f4; background:#faf5ff;">☸</div>
-            <span class="svc-label">EKS<br/>Kubernetes</span>
-          </div>
-
-          <div class="svc">
-            <span class="svc-badge"><span class="nbadge">18</span></span>
-            <div class="svc-box" style="border-color:#f6ad55; background:#fffaf0;">📨</div>
-            <span class="svc-label">MSK<br/>Kafka</span>
-          </div>
-
-          <div class="svc">
-            <span class="svc-badge"><span class="nbadge">19</span></span>
-            <div class="svc-box" style="border-color:#fc8181; background:#fff5f5;">⚡</div>
-            <span class="svc-label">ElastiCache<br/>Redis</span>
-          </div>
-
-          <div class="svc">
-            <span class="svc-badge"><span class="nbadge">20</span></span>
-            <div class="svc-box" style="border-color:#68d391; background:#f0fff4;">🗄</div>
-            <span class="svc-label">RDS /<br/>DynamoDB</span>
-          </div>
-
-          <div class="svc">
-            <span class="svc-badge"><span class="nbadge">21</span></span>
-            <div class="svc-box" style="border-color:#f6ad55; background:#fffaf0;">🔔</div>
-            <span class="svc-label">CloudWatch<br/>Alerts</span>
-          </div>
-
-          <div class="svc">
-            <span class="svc-badge"><span class="nbadge">22</span></span>
-            <div class="svc-box" style="border-color:#fc8181; background:#fff5f5;">🛡</div>
-            <span class="svc-label">WAF /<br/>IAM</span>
-          </div>
-
-        </div>
+  <!-- TIPS TAB -->
+  <div id="tab-tips" class="section">
+    <div class="tips-grid">
+      <div class="tip-card" style="background:var(--teal-light);border-color:var(--teal);">
+        <h3 style="color:var(--teal);">Hydration</h3>
+        <p>Drink 3–3.5L of water daily. Electrolytes matter — add a pinch of salt + lemon to one glass per day. Pre-workout: 500ml water, 30 min before.</p>
+      </div>
+      <div class="tip-card" style="background:var(--coral-light);border-color:var(--coral);">
+        <h3 style="color:var(--coral);">Progressive Overload</h3>
+        <p>Add reps or reduce rest time weekly. Once you can do 20+ clean reps, increase difficulty — slow negatives, harder variation, or weighted backpack.</p>
+      </div>
+      <div class="tip-card" style="background:var(--amber-light);border-color:var(--amber);">
+        <h3 style="color:var(--amber);">Sleep</h3>
+        <p>Aim for 8–9 hours. Growth hormone peaks in deep sleep. No screen 30 min before bed. Protein before sleep slows catabolism overnight.</p>
+      </div>
+      <div class="tip-card" style="background:var(--purple-light);border-color:var(--purple);">
+        <h3 style="color:var(--purple);">Tracking Progress</h3>
+        <p>Weigh yourself every Monday morning. Aim to gain 0.3–0.5 kg/month (lean bulk pace). Take monthly progress photos in the same lighting.</p>
+      </div>
+      <div class="tip-card" style="background:var(--green-light);border-color:var(--green-mid);">
+        <h3 style="color:var(--green);">Warm-up</h3>
+        <p>5–10 min always. Jumping jacks → arm circles → leg swings → 1 easy set of first exercise. Cold muscles tear. Don't skip this.</p>
+      </div>
+      <div class="tip-card" style="background:var(--coral-light);border-color:var(--coral);">
+        <h3 style="color:var(--coral);">Chennai Climate</h3>
+        <p>Humidity will spike your sweat rate. Work out early morning or post-sunset. Add coconut water or ORS drink on extra hot days for electrolytes.</p>
       </div>
     </div>
-
-  </div><!-- /aws-wrap -->
-
-  <!-- Legend -->
-  <div class="legend">
-    <span style="font-size:9px;font-weight:800;color:#4a5568;font-family:'JetBrains Mono',monospace;">LEGEND:</span>
-    <div class="leg"><div class="leg-line" style="background:#e05252;"></div>AWS Account</div>
-    <div class="leg"><div class="leg-line" style="background:#63b3ed;"></div>Frontend</div>
-    <div class="leg"><div class="leg-line" style="background:#68d391;"></div>Backend / API</div>
-    <div class="leg"><div class="leg-line" style="background:#ed8936;"></div>Stream Pipeline</div>
-    <div class="leg"><div class="leg-line" style="background:#9f7aea;"></div>ML Engine</div>
-    <div class="leg"><div class="leg-line" style="background:#4a5568;"></div>AWS Infra</div>
-    <div class="leg"><div class="leg-dash" style="border-color:#a0aec0;"></div>&nbsp;Namespace</div>
-    <div class="leg"><div style="width:17px;height:17px;border-radius:50%;background:#f6c90e;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#000;">N</div>&nbsp;Step</div>
   </div>
 
 </div>
-</body>
-</html>
+
+<script>
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const tabs = ['diet','workout','tips'];
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('.section').forEach(s => {
+    s.classList.toggle('active', s.id === 'tab-'+tab);
+  });
+}
+
+function switchDay(day) {
+  document.querySelectorAll('.day-btn').forEach(b => {
+    const days = ['mon','tue','wed','thu','fri','sat','sun'];
+    const i = Array.from(document.querySelectorAll('.day-btn')).indexOf(b);
+    b.classList.toggle('active', days[i] === day);
+  });
+  document.querySelectorAll('.workout-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'day-'+day);
+  });
+}
+</script>
